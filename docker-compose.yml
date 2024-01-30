@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+  elasticsearch:
+    build:
+      context: elasticsearch
+      args:
+        - ELASTIC_STACK_VERSION
+    image: elasticsearch
+    container_name: elasticsearch
+    volumes:
+      - type: bind
+        source: ./certificates
+        target: /usr/share/elasticsearch/config/certs
+        read_only: true
+      - type: volume
+        source: elasticsearch-data
+        target: /usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - sys-elastic
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    restart: unless-stopped
+
+  kibana:
+    depends_on:
+      - elasticsearch
+      - package-registry
+    build:
+      context: kibana
+    image: kibana
+    container_name: kibana
+    volumes:
+      - type: bind
+        source: ./certificates
+        target: /usr/share/kibana/config/certs
+      - type: volume
+        source: kibana-data
+        target: /usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    networks:
+      - sys-elastic
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    restart: unless-stopped
+
+  package-registry:
+    build:
+      context: package-registry
+    image: package-registry
+    container_name: package-registry
+    ports:
+      - "8765:8765"
+    networks:
+      - sys-elastic
+    environment:
+      - EPR_ADDRESS=0.0.0.0:8765
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  elasticsearch-repo:
+    driver: local
+  kibana-data:
+    driver: local
+
+networks:
+  sys-elastic:

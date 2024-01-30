@@ -1,0 +1,55 @@
+node.name: elastic
+network.host: _site_
+discovery.type: single-node
+
+cluster:
+  name: SCCoE
+
+path:
+  data: /usr/share/elasticsearch/data
+  repo:
+    - /usr/share/elasticsearch/repo
+
+xpack:
+  # Kibana Watcher related settings
+  http.ssl:
+    supported_protocols:
+      - TLSv1.3
+    verification_mode: full
+    key: certs/sccoe-sys-elastic-kibana-client-internal.key
+    certificate: certs/sccoe-sys-elastic-kibana-client-internal.pem
+    certificate_authorities: certs/sccoe_root_ca.cert
+
+  # Elasticsearch interfaces
+  security:
+    enabled: true
+    # Elasticsearch interface on port 9200.
+    http.ssl:
+      enabled: true
+      key: certs/sccoe-sys-elastic-elasticsearch-server-internal.key
+      certificate: certs/sccoe-sys-elastic-elasticsearch-server-internal.pem
+      certificate_authorities: certs/sccoe_root_ca.cert
+      client_authentication: optional
+      supported_protocols:
+        - TLSv1.3
+      verification_mode: full
+
+    # Authentication realms.
+    authc:
+      password_hashing.algorithm: pbkdf2_stretch
+      realms:
+        # PKI realm (for services authenticating using X.509 certificates, such as Kibana, Logstash, and Fleet Server).
+        pki.pki-realm:
+          order: 1
+          certificate_authorities: certs/sccoe_root_ca.cert
+          delegation.enabled: true
+        # Elastic stack administration, using .security index.
+        native.native-realm:
+          order: 2
+        # Used only as a fallback or for a recovery. For example in cases where the cluster is unresponsive or the security index
+        # is unavailable, or when you forget the password for your administrative users.
+        file.file-realm:
+          order: 3
+
+# License (basic or trial)
+xpack.license.self_generated.type: trial

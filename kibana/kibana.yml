@@ -1,0 +1,107 @@
+server:
+  host: "0.0.0.0"
+  name: "kibana"
+
+# These settings are better suited for containerized Kibana.
+monitoring.ui:
+  container:
+    elasticsearch.enabled: true
+    logstash.enabled: true
+  # Logs are collected by Elastic Agents (not standalone Filebeats), thus stored in logs-* indices.
+  logs.index: "logs-*"
+
+elasticsearch:
+  hosts:
+    - https://elasticsearch:9200
+  # Timeout of 5 minutes.
+  requestTimeout: 300000
+  ssl: # TLS client communication towards Elastic using client X.509 certificate.
+    key: config/certs/sccoe-sys-elastic-kibana-client-internal.key
+    certificate: config/certs/sccoe-sys-elastic-kibana-client-internal.pem
+    certificateAuthorities: config/certs/sccoe_root_ca.cert
+    verificationMode: full
+
+# Kibana TLS server where Kibana users land on.
+server.ssl:
+  enabled: true
+  clientAuthentication: optional
+  certificateAuthorities: config/certs/sccoe_root_ca.cert
+  certificate: config/certs/sccoe-sys-elastic-kibana-server-management.pem
+  key: config/certs/sccoe-sys-elastic-kibana-server-management.key
+
+# Disable reporting usage statistics to Elastic, B.V.
+telemetry:
+  allowChangingOptInStatus: false
+  optIn: false
+
+xpack:
+  # Kibana reporting settings.
+  reporting:
+    encryptionKey: "lksdlk43098ls@l;se9j"
+    kibanaServer.hostname: elastic
+    # Recommended setting for new installations.
+    roles.enabled: false
+
+  # Disable Chromium sandboxing as Kibana is run in a docker container anyway:
+  # https://www.elastic.co/guide/en/kibana/current/reporting-production-considerations.html
+  screenshotting.browser.chromium.disableSandbox: true
+
+  security:
+    authc.providers:
+      # Local user authentication via username/password for local administration.
+      basic.basic-realm:
+        order: 0
+        description: "Local authentication"
+        hint: "For Elastic maintenance activities"
+
+  fleet:
+    agents:
+      enabled: true
+      fleet_server.hosts:
+        - https://elastic:8220
+      elasticsearch:
+        hosts:
+          - https://elastic:9200
+    registryUrl: http://elastic:8765
+    packages:
+      - name: elastic_agent
+        version: latest
+      - name: prometheus
+        version: latest
+      - name: system
+        version: latest
+    agentPolicies:
+      - name: SYS/Service Portal
+        id: system-support-service-portal-policy
+        namespace: sccoe
+        monitoring_enabled:
+          - logs
+          - metrics
+        package_policies:
+          - name: Prometheus integration for SYS/WWW
+            id: sccoe-prometheus-sys-www
+            package:
+              name: prometheus
+            inputs:
+              - type: prometheus/metrics
+                enabled: true
+                streams:
+                  - enabled: true
+                    data_stream:
+                      type: metrics
+                      dataset: "prometheus.collector"
+                    vars:
+                      - name: bearer_token_file
+                        value: ""
+                      - name: headers
+                        value: ""
+                      - name: hosts
+                        value: [ "localhost:1337" ]
+                      - name: leaderelection
+                        value: false
+                      - name: metrics_path
+                        value: "/api/metrics"
+                      - name: password
+                        value: ""
+                      - name: username
+                        value: ""
